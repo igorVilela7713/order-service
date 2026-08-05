@@ -64,15 +64,10 @@
             <artifactId>spring-kafka</artifactId>
         </dependency>
 
-        <!-- Flyway -->
+        <!-- Flyway (PostgreSQL support built into flyway-core for v9.x) -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-database-postgresql</artifactId>
-            <version>9.22.3</version>
         </dependency>
 
         <!-- OpenAPI -->
