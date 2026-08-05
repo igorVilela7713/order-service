@@ -3,6 +3,7 @@ package com.igorservice.orderservice.service;
 import com.igorservice.orderservice.dto.OrderRequest;
 import com.igorservice.orderservice.dto.OrderResponse;
 import com.igorservice.orderservice.exception.OrderNotFoundException;
+import com.igorservice.orderservice.metrics.OrderMetrics;
 import com.igorservice.orderservice.model.Order;
 import com.igorservice.orderservice.model.OrderStatus;
 import com.igorservice.orderservice.repository.OrderRepository;
@@ -32,6 +33,9 @@ class OrderServiceTest {
 
     @Mock
     private KafkaEventPublisher kafkaEventPublisher;
+
+    @Mock
+    private OrderMetrics orderMetrics;
 
     @InjectMocks
     private OrderService orderService;

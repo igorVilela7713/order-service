@@ -62,8 +62,13 @@ spring:
       date: yyyy-MM-dd
       date-time: yyyy-MM-dd'T'HH:mm:ss
 
+  retry:
+    enabled: true
+
 app:
-  api-key: my-secret-key
+  api-key: "changeme"
+  kafka:
+    dlq-topic: order.dlq
 
 # --- Dev profile ---
 ---
@@ -114,7 +119,7 @@ spring:
     bootstrap-servers: ${spring.embedded.kafka.brokers}
 
 app:
-  api-key: test-key
+  api-key: "changeme"
 
 logging:
   level:

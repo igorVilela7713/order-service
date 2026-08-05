@@ -16,31 +16,33 @@
 - [x] DTOs (OrderRequest, OrderResponse)
 - [x] OrderController (REST endpoints)
 - [x] GlobalExceptionHandler
-- [ ] Order number generation optimization
-- [ ] Custom repository queries
+- [x] Order number generation optimization (atomic counter + date-based)
+- [x] Custom repository queries (findByCustomerId, findByStatus, countByStatus, findByCreatedAtBetween)
 
 ## Phase 3: Event-Driven Architecture (Week 3-4)
 
 - [x] KafkaConfig (producer)
 - [x] KafkaEventPublisher (3 event types)
+- [x] Retry logic with backoff (Spring Retry, 3 attempts, exponential)
+- [x] Dead-letter queue (order.dlq topic + @Recover methods)
 - [ ] Event schemas (JSON Schema / Avro)
-- [ ] Retry logic with backoff
-- [ ] Dead-letter queue
 
 ## Phase 4: Observability (Week 4-5)
 
 - [x] Micrometer + Prometheus
 - [x] Actuator health endpoints
-- [ ] Custom metrics (orders created, status changes)
-- [ ] Structured JSON logging
-- [ ] Distributed tracing (MDC)
+- [x] Custom metrics (orders created, status changes, active count gauge)
+- [x] Structured JSON logging (logstash-logback-encoder, profile-based)
+- [x] Distributed tracing (MDC with traceId/spanId)
+- [x] OrderMetrics component with Counter, Timer, Gauge
 
 ## Phase 5: Testing (Week 5-6)
 
 - [x] OrderService unit tests
 - [x] OrderController MockMvc tests
-- [ ] KafkaEventPublisher tests
-- [ ] Testcontainers integration tests
+- [x] OrderMetrics unit tests (counters, timer, gauge)
+- [x] KafkaEventPublisher tests (mock KafkaTemplate)
+- [x] Testcontainers integration tests (OrderRepositoryIntegrationTest)
 - [ ] Test data builders
 
 ## Phase 6: Production Readiness (Week 6-7)
