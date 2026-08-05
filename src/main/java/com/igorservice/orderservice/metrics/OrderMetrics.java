@@ -15,18 +15,14 @@ import java.util.concurrent.atomic.AtomicLong;
 public class OrderMetrics {
 
     private final Counter ordersCreatedCounter;
-    private final Counter ordersStatusChangedCounter;
     private final Timer orderCreationTimer;
     private final AtomicLong activeOrderCount = new AtomicLong(0);
+    private final MeterRegistry registry;
 
     public OrderMetrics(MeterRegistry registry) {
+        this.registry = registry;
         this.ordersCreatedCounter = Counter.builder("orders.created.total")
             .description("Total number of orders created")
-            .register(registry);
-
-        this.ordersStatusChangedCounter = Counter.builder("orders.status.changed.total")
-            .description("Total number of order status changes")
-            .tag("status", "unknown") // default tag, overridden at record time
             .register(registry);
 
         this.orderCreationTimer = Timer.builder("order.creation.duration")
@@ -52,7 +48,7 @@ public class OrderMetrics {
         Counter.builder("orders.status.changed.total")
             .description("Total number of order status changes")
             .tag("status", status)
-            .register(ordersCreatedCounter.registry())
+            .register(registry)
             .increment();
         log.debug("Recorded status change to: {}", status);
     }
