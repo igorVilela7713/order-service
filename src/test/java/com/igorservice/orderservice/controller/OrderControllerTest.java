@@ -6,6 +6,7 @@ import com.igorservice.orderservice.dto.OrderResponse;
 import com.igorservice.orderservice.exception.GlobalExceptionHandler;
 import com.igorservice.orderservice.exception.OrderNotFoundException;
 import com.igorservice.orderservice.model.OrderStatus;
+import com.igorservice.orderservice.service.OrderSearchService;
 import com.igorservice.orderservice.service.OrderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +40,9 @@ class OrderControllerTest {
 
     @MockBean
     private OrderService orderService;
+
+    @MockBean
+    private OrderSearchService orderSearchService;
 
     private OrderRequest validRequest;
     private OrderResponse sampleResponse;
