@@ -18,6 +18,11 @@ FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
+# Install curl for health checks (eclipse-temurin JRE doesn't include it)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
 # Non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
