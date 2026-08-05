@@ -60,3 +60,4 @@ npm-debug.log
 # === Gradle (if migrated) ===
 .gradle/
 build/
+.hermes-tmp*
