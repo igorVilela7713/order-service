@@ -3,6 +3,7 @@ package com.igorservice.orderservice.controller;
 import com.igorservice.orderservice.dto.OrderRequest;
 import com.igorservice.orderservice.dto.OrderResponse;
 import com.igorservice.orderservice.model.OrderStatus;
+import com.igorservice.orderservice.service.OrderSearchService;
 import com.igorservice.orderservice.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +29,7 @@ import java.util.UUID;
 public class OrderController {
 
     private final OrderService orderService;
+    private final OrderSearchService orderSearchService;
 
     @PostMapping
     @Operation(summary = "Create a new order", responses = {
@@ -79,6 +82,29 @@ public class OrderController {
         log.info("DELETE /api/v1/orders/{}", orderId);
         orderService.cancelOrder(orderId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "Search orders with filters",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Search results"),
+            @ApiResponse(responseCode = "400", description = "Invalid parameters")
+        })
+    public ResponseEntity<Page<OrderResponse>> searchOrders(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.Instant startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.Instant endDate,
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) String customerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        size = Math.min(size, 100);
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        log.debug("GET /api/v1/orders/search — startDate: {}, endDate: {}, status: {}, customerId: {}",
+                startDate, endDate, status, customerId);
+
+        return ResponseEntity.ok(orderSearchService.search(startDate, endDate, status, customerId, pageable));
     }
 
     // Inner DTO for status update
