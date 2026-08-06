@@ -217,3 +217,40 @@ void shouldCreateOrder() {
 2. Add recording method(s)
 3. Call from service layer
 4. Add test in `OrderMetricsTest.java`
+
+
+
+---
+
+## Repository Memory System (Mandatory Read/Write Flow)
+
+This repository keeps a **living memory** in `MEMORY.md` at the repo root. The file accumulates context across agent sessions — local conventions, known pitfalls, architecture decisions, verified commands and lessons learned — so nothing is rediscovered twice and every agent starts informed.
+
+### Mandatory flow
+
+**1. READ — required at the start of every task**
+- Before writing code, running commands, or proposing changes, **read `MEMORY.md` in full**.
+- Absorb: known gotchas, build/test conventions, recorded architecture decisions (ADRs), and tool versions.
+- If `MEMORY.md` does not exist yet, create the base sections before acting.
+
+**2. WRITE — required at the end of every task**
+- After completing any task — especially after fixing a bug, working around a pitfall, making an architecture decision, validating a command, or learning a new gotcha — **update `MEMORY.md`**.
+- Append a new entry to `## Agent Memory Log` with: date, agent/author, what was learned, and references (file + commit).
+- Commit `MEMORY.md` in an atomic commit (`docs(memory): ...`) or together with the task commit — **never leave it uncommitted**.
+- Keep entries short and linkable to source files/commits.
+
+### `MEMORY.md` structure
+
+The file is organized into fixed, scannable sections. The `## Agent Memory Log` section is append-only (newest entry first):
+
+- `# MEMORY.md — Living Memory of the Repo`
+- `## Project Summary`
+- `## Stack`
+- `## Conventions (quick reference)`
+- `## Verified Commands (build / test / deploy)`
+- `## Known Pitfalls (gotchas)`
+- `## Architecture Decisions (ADRs)`
+- `## Lessons Learned`
+- `## Agent Memory Log`
+
+See [`docs/memory.md`](docs/memory.md) and [`README.md`](README.md) for the full rationale.
