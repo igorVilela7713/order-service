@@ -116,7 +116,7 @@ spring:
   flyway:
     enabled: false
   kafka:
-    bootstrap-servers: ${spring.embedded.kafka.brokers}
+    bootstrap-servers: ${spring.embedded.kafka.brokers:localhost:9092}
 
 app:
   api-key: "changeme"
