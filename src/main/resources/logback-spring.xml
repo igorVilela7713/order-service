@@ -2,8 +2,6 @@
 <configuration>
 
     <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="order-service"/>
-    <springProperty scope="context" name="TRACE_ID" name="traceId" defaultValue=""/>
-    <springProperty scope="context" name="SPAN_ID" name="spanId" defaultValue=""/>
 
     <!-- ==================== DEV PROFILE ==================== -->
     <springProfile name="dev">

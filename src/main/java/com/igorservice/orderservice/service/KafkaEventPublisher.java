@@ -32,7 +32,7 @@ public class KafkaEventPublisher {
         value = {Exception.class},
         maxAttempts = 3,
         backoff = @org.springframework.retry.annotation.Backoff(
-            initialDelay = 1000,
+            delay = 1000,
             maxDelay = 10000,
             multiplier = 2.0
         )
@@ -46,7 +46,7 @@ public class KafkaEventPublisher {
         value = {Exception.class},
         maxAttempts = 3,
         backoff = @org.springframework.retry.annotation.Backoff(
-            initialDelay = 1000,
+            delay = 1000,
             maxDelay = 10000,
             multiplier = 2.0
         )
@@ -60,7 +60,7 @@ public class KafkaEventPublisher {
         value = {Exception.class},
         maxAttempts = 3,
         backoff = @org.springframework.retry.annotation.Backoff(
-            initialDelay = 1000,
+            delay = 1000,
             maxDelay = 10000,
             multiplier = 2.0
         )

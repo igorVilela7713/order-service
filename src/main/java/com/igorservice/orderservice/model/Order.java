@@ -69,7 +69,10 @@ public class Order {
 
     public void recalculateTotal() {
         this.totalAmount = items.stream()
-            .map(OrderItem::getTotalPrice)
+            .map(item -> {
+                item.setTotalPrice(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
+                return item.getTotalPrice();
+            })
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }
