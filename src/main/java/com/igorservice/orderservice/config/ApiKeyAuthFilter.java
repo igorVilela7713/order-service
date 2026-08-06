@@ -30,7 +30,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType("application/json");
             response.getWriter().write(
-                "{"status":401,"error":"Unauthorized","message":"Invalid or missing API key"}"
+                "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Invalid or missing API key\"}"
             );
             return;
         }

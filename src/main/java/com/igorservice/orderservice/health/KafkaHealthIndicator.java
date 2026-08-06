@@ -27,7 +27,7 @@ public class KafkaHealthIndicator implements HealthIndicator {
         try {
             Properties props = new Properties();
             props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-            props.put(AdminClientConfig.CONNECTION_MAX_IDLE_MS_CONFIG, 5000);
+            props.put(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, 5000);
 
             try (AdminClient adminClient = AdminClient.create(props)) {
                 var clusterIdResult = adminClient.describeCluster();
