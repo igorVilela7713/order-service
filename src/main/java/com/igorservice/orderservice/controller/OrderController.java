@@ -71,8 +71,8 @@ public class OrderController {
     public ResponseEntity<OrderResponse> updateOrderStatus(
             @PathVariable UUID orderId,
             @RequestBody StatusUpdateRequest statusRequest) {
-        log.info("PUT /api/v1/orders/{}/status -> {}", orderId, statusRequest.getStatus());
-        OrderStatus newStatus = OrderStatus.valueOf(statusRequest.getStatus());
+        log.info("PUT /api/v1/orders/{}/status -> {}", orderId, statusRequest.status());
+        OrderStatus newStatus = OrderStatus.valueOf(statusRequest.status());
         return ResponseEntity.ok(orderService.updateOrderStatus(orderId, newStatus));
     }
 
