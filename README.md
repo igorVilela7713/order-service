@@ -233,6 +233,19 @@ Coverage enforcement: JaCoCo checks minimum 70% line coverage during `mvn verify
 | [docs/development.md](docs/development.md) | Developer setup and conventions |
 | [AGENTS.md](AGENTS.md) | AI agent guidance for this codebase |
 | [SPEC.md](SPEC.md) | Original project specification |
+| [docs/memory.md](docs/memory.md) | Repository memory system (mandatory read/write flow) |
+
+
+
+## Repository Memory System
+
+This repository maintains a living knowledge base at [`MEMORY.md`](MEMORY.md) that accumulates context across agent sessions — conventions, known pitfalls, architecture decisions, verified commands and lessons learned. See [`docs/memory.md`](docs/memory.md) for full documentation.
+
+**Mandatory flow for AI agents (Hermes, Claude, Copilot, etc.):**
+1. **Read `MEMORY.md`** before starting any task.
+2. **Update `MEMORY.md`** when you finish — recording pitfalls, decisions and commands you validated — and **commit** the update (`docs(memory): ...`), never leaving it uncommitted.
+
+> Full format and flow are defined in [`AGENTS.md`](AGENTS.md).
 
 ## License
 
