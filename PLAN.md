@@ -43,7 +43,8 @@
 - [x] OrderMetrics unit tests (counters, timer, gauge)
 - [x] KafkaEventPublisher tests (mock KafkaTemplate)
 - [x] Testcontainers integration tests (OrderRepositoryIntegrationTest)
-- [ ] Test data builders
+- [x] OrderSearchIntegrationTest (search by date range, status, customerId, pagination)
+- [x] Test data builders
 
 ## Phase 6: Production Readiness (Week 6-7)
 
