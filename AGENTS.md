@@ -110,6 +110,75 @@ order-service/
 - **Soft delete**: Orders are never physically deleted; status → CANCELLED.
 - **Optimistic locking**: Order entity uses `@Version` for concurrent update protection.
 
+## Cancellation Feature (OrderService.cancelOrder)
+
+### Overview
+
+The `cancelOrder(UUID orderId)` method in `OrderService` implements a soft-delete cancellation pattern. Orders are never physically deleted; they transition to `CANCELLED` status.
+
+### Valid Transitions (from OrderStatus.canTransitionTo)
+
+```java
+case PENDING    -> target == CONFIRMED || target == CANCELLED;
+case CONFIRMED  -> target == PROCESSING || target == CANCELLED;
+case PROCESSING -> target == SHIPPED || target == CANCELLED;
+case SHIPPED    -> target == DELIVERED;
+case DELIVERED  -> false;
+case CANCELLED  -> false;
+```
+
+### Implementation Details
+
+**Location**: `OrderService.cancelOrder(UUID orderId)` (lines 130-159)
+
+**Behavior**:
+1. Validates order exists (throws `OrderNotFoundException` if not found)
+2. Validates state transition via `order.getStatus().canTransitionTo(CANCELLED)`
+3. Sets status to `CANCELLED` and saves
+4. Records metrics: `orders.status.changed.total{status="CANCELLED"}` + `orders.active.count` decrement
+5. Publishes `ORDER_CANCELLED` event to Kafka topic `order.cancelled`
+6. MDC trace context logged for distributed tracing
+
+**Error cases**:
+- `OrderNotFoundException` → 404 (handled by `GlobalExceptionHandler`)
+- Invalid state transition → `IllegalStateException` → 400 (handled by `GlobalExceptionHandler`)
+
+### Kafka Event: ORDER_CANCELLED
+
+**Topic**: `order.cancelled`
+
+**Payload**:
+```json
+{
+  "eventId": "UUID",
+  "eventType": "ORDER_CANCELLED",
+  "orderId": "UUID",
+  "orderNumber": "ORD-20260805-00001",
+  "customerId": "customer-001",
+  "totalAmount": 59.98,
+  "status": "CANCELLED",
+  "timestamp": "2026-08-05T10:30:00Z"
+}
+```
+
+**Resilience**:
+- `@Retryable` with 3 attempts, exponential backoff (1s → 2s → 4s)
+- `@Recover` method sends to DLQ (`order.dlq`) on exhaustion
+- DLQ event includes original topic, failure reason, timestamp
+
+### Controller Endpoint
+
+**DELETE** `/api/v1/orders/{orderId}` → `OrderController.cancelOrder()`
+
+Returns 204 No Content on success.
+
+### Testing
+
+- Unit test: `OrderServiceTest.cancelOrder_Success()` + `cancelOrder_CannotCancelDelivered()`
+- Controller test: `OrderControllerTest.cancelOrder_Success()`
+
+---
+
 ## Test Patterns
 
 ### TestDataBuilder Usage
