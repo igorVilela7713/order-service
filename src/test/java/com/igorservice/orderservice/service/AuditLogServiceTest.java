@@ -1,5 +1,6 @@
 package com.igorservice.orderservice.service;
 
+import com.igorservice.orderservice.metrics.OrderMetrics;
 import com.igorservice.orderservice.model.AuditLog;
 import com.igorservice.orderservice.model.Order;
 import com.igorservice.orderservice.model.OrderStatus;
