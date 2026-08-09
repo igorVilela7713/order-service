@@ -248,7 +248,7 @@
 
 **Status:** Accepted
 
-**Context:** Orders need to be "cancelled" without losing historical data for audit and reporting.
+**Context:** Orders need to be "cancelled" without losing historical data for audit and reporting. The system must support compliance requirements where order history cannot be erased.
 
 **Decision:** Orders are never physically deleted. The DELETE endpoint transitions order status to `CANCELLED`.
 
@@ -259,6 +259,11 @@
 - Query filtering: active orders can be queried by excluding CANCELLED status
 - Audit trail preserved: all order data remains in the database
 - `CascadeType.ALL` + `orphanRemoval = true` on Order.items means cancelling doesn't delete items
+- **State Machine Integration**: The `OrderStatus.canTransitionTo()` method allows cancellation from PENDING, CONFIRMED, and PROCESSING states only. SHIPPED and DELIVERED orders cannot be cancelled.
+- **Audit Log Integration**: Every cancellation creates an `ORDER_CANCELLED` audit log entry via `AuditLogService.logOrderCancelled()` capturing previous status, actor ID, and full order snapshot (orderId, orderNumber, customerId, totalAmount, status, items).
+- **Kafka Event**: Publishes `ORDER_CANCELLED` event to `order.cancelled` topic with retry (3x exponential backoff: 1s → 2s → 4s, max 10s) and DLQ fallback (`order.dlq`). The `@Recover` method `recoverPublishOrderCancelled()` handles DLQ routing.
+- **Metrics**: Records `orders.status.changed.total` (tagged CANCELLED) and decrements `orders.active.count` gauge.
+- **Error Handling**: Returns 404 if order not found, 409 Conflict if invalid state transition (e.g., trying to cancel a DELIVERED order).
 
 ---
 
