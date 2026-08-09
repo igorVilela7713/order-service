@@ -31,6 +31,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final KafkaEventPublisher kafkaEventPublisher;
     private final OrderMetrics orderMetrics;
+    private final AuditLogService auditLogService;
     private final AtomicLong orderSequence = new AtomicLong(0);
 
     @Transactional
@@ -68,6 +69,11 @@ public class OrderService {
             orderMetrics.recordOrderCreated(duration);
 
             kafkaEventPublisher.publishOrderCreated(saved);
+            
+            // Log audit
+            String actorId = extractActorId();
+            auditLogService.logOrderCreated(saved, actorId);
+            
             return OrderResponse.fromEntity(saved);
         } finally {
             MDC.clear();
@@ -121,6 +127,11 @@ public class OrderService {
             }
 
             kafkaEventPublisher.publishOrderStatusChanged(saved, oldStatus);
+            
+            // Log audit
+            String actorId = extractActorId();
+            auditLogService.logOrderStatusChanged(saved, oldStatus, actorId);
+            
             return OrderResponse.fromEntity(saved);
         } finally {
             MDC.clear();
@@ -152,6 +163,11 @@ public class OrderService {
             orderMetrics.recordOrderCompleted();
 
             kafkaEventPublisher.publishOrderCancelled(saved);
+            
+            // Log audit
+            String actorId = extractActorId();
+            auditLogService.logOrderCancelled(saved, oldStatus, actorId);
+            
             log.info("Order {} cancelled", orderId);
         } finally {
             MDC.clear();
@@ -162,5 +178,14 @@ public class OrderService {
         String dateStr = LocalDate.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         long seq = orderSequence.incrementAndGet();
         return String.format("ORD-%s-%05d", dateStr, seq);
+    }
+
+    private String extractActorId() {
+        // Try to get actor ID from MDC, fallback to API key if available
+        String traceId = MDC.get("traceId");
+        if (traceId != null) {
+            return "trace:" + traceId;
+        }
+        return "system";
     }
 }
