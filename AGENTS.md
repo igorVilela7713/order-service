@@ -110,6 +110,98 @@ order-service/
 - **Soft delete**: Orders are never physically deleted; status → CANCELLED.
 - **Optimistic locking**: Order entity uses `@Version` for concurrent update protection.
 
+### Cancellation Feature (OrderService.cancelOrder)
+
+### Overview
+
+The `cancelOrder(UUID orderId)` method in `OrderService` implements a soft-delete cancellation pattern. Orders are never physically deleted; they transition to `CANCELLED` status.
+
+### Valid Transitions (from OrderStatus.canTransitionTo)
+
+```java
+case PENDING    -> target == CONFIRMED || target == CANCELLED;
+case CONFIRMED  -> target == PROCESSING || target == CANCELLED;
+case PROCESSING -> target == SHIPPED || target == CANCELLED;
+case SHIPPED    -> target == DELIVERED;
+case DELIVERED  -> false;
+case CANCELLED  -> false;
+```
+
+### Implementation Details
+
+**Location**: `OrderService.cancelOrder(UUID orderId)` (lines 130-159)
+
+**Behavior**:
+1. Validates order exists (throws `OrderNotFoundException` if not found)
+2. Validates state transition via `order.getStatus().canTransitionTo(CANCELLED)`
+3. Sets status to `CANCELLED` and saves
+4. Records metrics: `orders.status.changed.total{status="CANCELLED"}` + `orders.active.count` decrement
+5. Publishes `ORDER_CANCELLED` event to Kafka topic `order.cancelled`
+6. **Logs audit event**: `AuditLogService.logOrderCancelled()` stores `ORDER_CANCELLED` audit record with previous status, full order snapshot, actor ID (trace ID), and timestamp
+7. MDC trace context logged for distributed tracing
+
+**Error cases**:
+- `OrderNotFoundException` → 404 (handled by `GlobalExceptionHandler`)
+- Invalid state transition → `IllegalStateException` → 400 (handled by `GlobalExceptionHandler`)
+
+### Kafka Event: ORDER_CANCELLED
+
+**Topic**: `order.cancelled`
+
+**Payload**:
+```json
+{
+  "eventId": "UUID",
+  "eventType": "ORDER_CANCELLED",
+  "orderId": "UUID",
+  "orderNumber": "ORD-20260805-00001",
+  "customerId": "customer-001",
+  "totalAmount": 59.98,
+  "status": "CANCELLED",
+  "timestamp": "2026-08-05T10:30:00Z"
+}
+```
+
+**Resilience**:
+- `@Retryable` with 3 attempts, exponential backoff (1s → 2s → 4s)
+- `@Recover` method sends to DLQ (`order.dlq`) on exhaustion
+- DLQ event includes original topic, failure reason, timestamp
+
+### Audit Log: ORDER_CANCELLED
+
+**Entity**: `AuditLog` (table `audit_log`)
+
+**Fields captured**:
+- `orderId` — UUID of the cancelled order
+- `eventType` — `ORDER_CANCELLED`
+- `eventData` — Full order snapshot (JSON string with order details + items)
+- `previousStatus` — Status before cancellation (e.g., `PENDING`, `CONFIRMED`)
+- `newStatus` — `CANCELLED`
+- `actorId` — Trace ID from MDC context (format: `trace:<uuid>`)
+- `timestamp` — When cancellation occurred
+
+**Query methods** (`AuditLogService`):
+- `getAuditLogForOrder(orderId, pageable)` — Paginated audit trail for an order
+- `getAuditLogsByEventType("ORDER_CANCELLED", pageable)` — All cancellations
+- `getRecentAuditLogs(since, pageable)` — Recent events (e.g., last 24h)
+- `getLatestAuditLogsForOrder(orderId)` — Last 10 events for an order
+- `countAuditLogsForOrder(orderId)` — Total audit entries for an order
+- `countAuditLogsByEventType("ORDER_CANCELLED")` — Total cancellations
+
+### Controller Endpoint
+
+**DELETE** `/api/v1/orders/{orderId}` → `OrderController.cancelOrder()`
+
+Returns 204 No Content on success.
+
+### Testing
+
+- Unit test: `OrderServiceTest.cancelOrder_Success()` + `cancelOrder_CannotCancelDelivered()`
+- Controller test: `OrderControllerTest.cancelOrder_Success()`
+- Audit log test: `AuditLogServiceTest.logOrderCancelled_Success()`
+
+---
+
 ## Test Patterns
 
 ### TestDataBuilder Usage
@@ -217,3 +309,40 @@ void shouldCreateOrder() {
 2. Add recording method(s)
 3. Call from service layer
 4. Add test in `OrderMetricsTest.java`
+
+
+
+---
+
+## Repository Memory System (Mandatory Read/Write Flow)
+
+This repository keeps a **living memory** in `MEMORY.md` at the repo root. The file accumulates context across agent sessions — local conventions, known pitfalls, architecture decisions, verified commands and lessons learned — so nothing is rediscovered twice and every agent starts informed.
+
+### Mandatory flow
+
+**1. READ — required at the start of every task**
+- Before writing code, running commands, or proposing changes, **read `MEMORY.md` in full**.
+- Absorb: known gotchas, build/test conventions, recorded architecture decisions (ADRs), and tool versions.
+- If `MEMORY.md` does not exist yet, create the base sections before acting.
+
+**2. WRITE — required at the end of every task**
+- After completing any task — especially after fixing a bug, working around a pitfall, making an architecture decision, validating a command, or learning a new gotcha — **update `MEMORY.md`**.
+- Append a new entry to `## Agent Memory Log` with: date, agent/author, what was learned, and references (file + commit).
+- Commit `MEMORY.md` in an atomic commit (`docs(memory): ...`) or together with the task commit — **never leave it uncommitted**.
+- Keep entries short and linkable to source files/commits.
+
+### `MEMORY.md` structure
+
+The file is organized into fixed, scannable sections. The `## Agent Memory Log` section is append-only (newest entry first):
+
+- `# MEMORY.md — Living Memory of the Repo`
+- `## Project Summary`
+- `## Stack`
+- `## Conventions (quick reference)`
+- `## Verified Commands (build / test / deploy)`
+- `## Known Pitfalls (gotchas)`
+- `## Architecture Decisions (ADRs)`
+- `## Lessons Learned`
+- `## Agent Memory Log`
+
+See [`docs/memory.md`](docs/memory.md) and [`README.md`](README.md) for the full rationale.

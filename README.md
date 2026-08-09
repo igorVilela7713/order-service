@@ -119,6 +119,110 @@ Open http://localhost:8080/swagger-ui.html in your browser.
 
 See [docs/api.md](docs/api.md) for complete API documentation with examples.
 
+## Cancel Order Feature
+
+The order cancellation feature provides a soft-delete mechanism where orders are never physically removed from the database — they transition to `CANCELLED` status.
+
+### Endpoint
+
+**DELETE** `/api/v1/orders/{orderId}`
+
+### Valid State Transitions
+
+Only orders in these statuses can be cancelled:
+
+```
+PENDING → CANCELLED
+CONFIRMED → CANCELLED
+PROCESSING → CANCELLED
+```
+
+Orders in `SHIPPED`, `DELIVERED`, or already `CANCELLED` status cannot be cancelled.
+
+### Side Effects
+
+When an order is cancelled, the following happens atomically within a transaction:
+
+1. **Status change**: Order status transitions to `CANCELLED`
+2. **Event publishing**: `ORDER_CANCELLED` event published to Kafka topic `order.cancelled`
+3. **Metrics recorded**:
+   - `orders.status.changed.total{status="CANCELLED"}` counter incremented
+   - `orders.active.count` gauge decremented (order moves to terminal state)
+4. **Distributed tracing**: MDC trace context logged with traceId/spanId
+
+### Example Request
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/orders/550e8400-e29b-41d4-a716-446655440000 \
+  -H "X-API-KEY: ***"
+```
+
+### Response
+
+- **204 No Content** — Order cancelled successfully
+
+### Error Responses
+
+**400 Bad Request** — Invalid state transition:
+```json
+{
+  "status": 400,
+  "error": "Illegal State",
+  "message": "Order cannot be cancelled in status: DELIVERED"
+}
+```
+
+**404 Not Found** — Order doesn't exist:
+```json
+{
+  "status": 404,
+  "error": "Not Found",
+  "message": "Order not found with ID: 550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+### Event Payload (order.cancelled topic)
+
+```json
+{
+  "eventId": "550e8400-e29b-41d4-a716-446655440000",
+  "eventType": "ORDER_CANCELLED",
+  "orderId": "550e8400-e29b-41d4-a716-446655440000",
+  "orderNumber": "ORD-20260805-00001",
+  "customerId": "customer-001",
+  "totalAmount": 59.98,
+  "status": "CANCELLED",
+  "timestamp": "2026-08-05T10:30:00Z"
+}
+```
+
+### Resilience & DLQ
+
+- Kafka publish is `@Retryable` with 3 attempts, exponential backoff (1s → 2s → 4s)
+- On exhaustion, `@Recover` method sends event to Dead Letter Queue (`order.dlq`)
+- DLQ messages include original topic, failure reason, and timestamp for investigation
+- `KafkaDlqListener` logs DLQ events for manual retry/alerting
+
+### Audit Logging
+
+Every cancellation is recorded in the audit log for compliance and traceability:
+
+**Audit Event**: `ORDER_CANCELLED`
+
+**Stored Data**:
+- Order ID, order number, customer ID, total amount
+- Previous status (before cancellation) and new status (`CANCELLED`)
+- Actor ID (trace ID from MDC context)
+- Full order snapshot including items (JSON in `eventData` column)
+- Timestamp of cancellation
+
+**Retrieval Endpoints** (via `AuditLogService`):
+- `GET /api/v1/orders/{orderId}/audit` — paginated audit trail for a specific order
+- Filter by event type (`ORDER_CANCELLED`), date range, or recent events
+- Count endpoints for dashboards: total cancellations per order, per event type
+
+---
+
 ## Configuration
 
 ### Environment Variables
@@ -233,6 +337,19 @@ Coverage enforcement: JaCoCo checks minimum 70% line coverage during `mvn verify
 | [docs/development.md](docs/development.md) | Developer setup and conventions |
 | [AGENTS.md](AGENTS.md) | AI agent guidance for this codebase |
 | [SPEC.md](SPEC.md) | Original project specification |
+| [docs/memory.md](docs/memory.md) | Repository memory system (mandatory read/write flow) |
+
+
+
+## Repository Memory System
+
+This repository maintains a living knowledge base at [`MEMORY.md`](MEMORY.md) that accumulates context across agent sessions — conventions, known pitfalls, architecture decisions, verified commands and lessons learned. See [`docs/memory.md`](docs/memory.md) for full documentation.
+
+**Mandatory flow for AI agents (Hermes, Claude, Copilot, etc.):**
+1. **Read `MEMORY.md`** before starting any task.
+2. **Update `MEMORY.md`** when you finish — recording pitfalls, decisions and commands you validated — and **commit** the update (`docs(memory): ...`), never leaving it uncommitted.
+
+> Full format and flow are defined in [`AGENTS.md`](AGENTS.md).
 
 ## License
 
