@@ -110,7 +110,7 @@ order-service/
 - **Soft delete**: Orders are never physically deleted; status → CANCELLED.
 - **Optimistic locking**: Order entity uses `@Version` for concurrent update protection.
 
-## Cancellation Feature (OrderService.cancelOrder)
+### Cancellation Feature (OrderService.cancelOrder)
 
 ### Overview
 
@@ -137,7 +137,8 @@ case CANCELLED  -> false;
 3. Sets status to `CANCELLED` and saves
 4. Records metrics: `orders.status.changed.total{status="CANCELLED"}` + `orders.active.count` decrement
 5. Publishes `ORDER_CANCELLED` event to Kafka topic `order.cancelled`
-6. MDC trace context logged for distributed tracing
+6. **Logs audit event**: `AuditLogService.logOrderCancelled()` stores `ORDER_CANCELLED` audit record with previous status, full order snapshot, actor ID (trace ID), and timestamp
+7. MDC trace context logged for distributed tracing
 
 **Error cases**:
 - `OrderNotFoundException` → 404 (handled by `GlobalExceptionHandler`)
@@ -166,6 +167,27 @@ case CANCELLED  -> false;
 - `@Recover` method sends to DLQ (`order.dlq`) on exhaustion
 - DLQ event includes original topic, failure reason, timestamp
 
+### Audit Log: ORDER_CANCELLED
+
+**Entity**: `AuditLog` (table `audit_log`)
+
+**Fields captured**:
+- `orderId` — UUID of the cancelled order
+- `eventType` — `ORDER_CANCELLED`
+- `eventData` — Full order snapshot (JSON string with order details + items)
+- `previousStatus` — Status before cancellation (e.g., `PENDING`, `CONFIRMED`)
+- `newStatus` — `CANCELLED`
+- `actorId` — Trace ID from MDC context (format: `trace:<uuid>`)
+- `timestamp` — When cancellation occurred
+
+**Query methods** (`AuditLogService`):
+- `getAuditLogForOrder(orderId, pageable)` — Paginated audit trail for an order
+- `getAuditLogsByEventType("ORDER_CANCELLED", pageable)` — All cancellations
+- `getRecentAuditLogs(since, pageable)` — Recent events (e.g., last 24h)
+- `getLatestAuditLogsForOrder(orderId)` — Last 10 events for an order
+- `countAuditLogsForOrder(orderId)` — Total audit entries for an order
+- `countAuditLogsByEventType("ORDER_CANCELLED")` — Total cancellations
+
 ### Controller Endpoint
 
 **DELETE** `/api/v1/orders/{orderId}` → `OrderController.cancelOrder()`
@@ -176,6 +198,7 @@ Returns 204 No Content on success.
 
 - Unit test: `OrderServiceTest.cancelOrder_Success()` + `cancelOrder_CannotCancelDelivered()`
 - Controller test: `OrderControllerTest.cancelOrder_Success()`
+- Audit log test: `AuditLogServiceTest.logOrderCancelled_Success()`
 
 ---
 
