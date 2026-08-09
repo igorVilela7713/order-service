@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,6 +37,9 @@ class OrderServiceTest {
 
     @Mock
     private OrderMetrics orderMetrics;
+
+    @Mock
+    private AuditLogService auditLogService;
 
     @InjectMocks
     private OrderService orderService;
@@ -86,6 +90,7 @@ class OrderServiceTest {
         assertThat(response.getTotalAmount()).isEqualByComparingTo(new BigDecimal("109.97"));
         verify(orderRepository).save(any(Order.class));
         verify(kafkaEventPublisher).publishOrderCreated(any(Order.class));
+        verify(auditLogService).logOrderCreated(any(Order.class), anyString());
     }
 
     @Test
@@ -130,6 +135,7 @@ class OrderServiceTest {
         // Assert
         verify(orderRepository).save(any(Order.class));
         verify(kafkaEventPublisher).publishOrderStatusChanged(any(Order.class), eq(OrderStatus.PENDING));
+        verify(auditLogService).logOrderStatusChanged(any(Order.class), eq(OrderStatus.PENDING), anyString());
     }
 
     @Test
@@ -159,6 +165,7 @@ class OrderServiceTest {
         // Assert
         verify(orderRepository).save(any(Order.class));
         verify(kafkaEventPublisher).publishOrderCancelled(any(Order.class));
+        verify(auditLogService).logOrderCancelled(any(Order.class), eq(OrderStatus.PENDING), anyString());
     }
 
     @Test
