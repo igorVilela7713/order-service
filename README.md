@@ -203,6 +203,24 @@ curl -X DELETE http://localhost:8080/api/v1/orders/550e8400-e29b-41d4-a716-44665
 - DLQ messages include original topic, failure reason, and timestamp for investigation
 - `KafkaDlqListener` logs DLQ events for manual retry/alerting
 
+### Audit Logging
+
+Every cancellation is recorded in the audit log for compliance and traceability:
+
+**Audit Event**: `ORDER_CANCELLED`
+
+**Stored Data**:
+- Order ID, order number, customer ID, total amount
+- Previous status (before cancellation) and new status (`CANCELLED`)
+- Actor ID (trace ID from MDC context)
+- Full order snapshot including items (JSON in `eventData` column)
+- Timestamp of cancellation
+
+**Retrieval Endpoints** (via `AuditLogService`):
+- `GET /api/v1/orders/{orderId}/audit` — paginated audit trail for a specific order
+- Filter by event type (`ORDER_CANCELLED`), date range, or recent events
+- Count endpoints for dashboards: total cancellations per order, per event type
+
 ---
 
 ## Configuration
