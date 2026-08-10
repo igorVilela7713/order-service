@@ -134,12 +134,27 @@ All endpoints require `X-API-KEY` header (except actuator/swagger).
 | PUT | `/api/v1/orders/{orderId}/status` | Update order status | 200, 404, 409 |
 | DELETE | `/api/v1/orders/{orderId}` | Cancel an order (soft delete — transitions to CANCELLED, publishes ORDER_CANCELLED event, logs audit) | 204, 404, 409 |
 | GET | `/api/v1/orders/search` | Search with filters | 200 |
+| GET | `/api/v1/orders/{orderId}/audit` | Paginated audit trail for an order | 200, 400 |
+| GET | `/api/v1/audit/events?eventType={eventType}` | Audit entries filtered by event type (e.g. ORDER_CANCELLED) | 200, 400 |
+| GET | `/api/v1/audit/recent?since={instant}` | Audit entries recorded at/after an ISO-8601 instant | 200, 400 |
+| GET | `/api/v1/orders/{orderId}/audit/count` | Count of audit entries for an order | 200 |
+| GET | `/api/v1/audit/events/count?eventType={eventType}` | Count of audit entries by event type | 200 |
 
 ### Pagination Parameters
 - `page` (default: 0), `size` (default: 20, max: 100), `sort` (default: createdAt), `direction` (default: desc)
 
 ### Search Parameters (GET /search)
 - `startDate` (ISO date-time), `endDate` (ISO date-time), `status` (enum), `customerId` (string)
+
+### Audit Log Retrieval Endpoints (GET /api/v1/audit*)
+Exposed via `AuditLogController` (PR #12). All audit endpoints require `X-API-KEY` and return paginated `Page<AuditLogResponse>`:
+- `GET /orders/{orderId}/audit` — per-order trail (default sort: `timestamp` desc; same `page`/`size`/`sort`/`direction` params as order list, `size` capped at 100)
+- `GET /audit/events?eventType=ORDER_CANCELLED` — filter by event type
+- `GET /audit/recent?since=2026-08-08T00:00:00Z` — entries at/after an ISO-8601 instant (fixed sort timestamp desc)
+- `GET /orders/{orderId}/audit/count` — count per order (returns `{"count": N}`)
+- `GET /audit/events/count?eventType=ORDER_CANCELLED` — count per event type (returns `{"count": N}`)
+
+`AuditLogResponse` is a Java record with `@Schema` annotations for SpringDoc; each entry maps an `AuditLog` entity (id, orderId, eventType, eventData JSON snapshot, previousStatus, newStatus, actorId, timestamp). Query operations record `audit.log.queries.total` counter and `audit.log.query.duration` timer via `OrderMetrics.recordAuditLogQuery()` (queryType: `byOrderId`, `byEventType`, `recentEvents`, `latestByOrderId`, `countByOrderId`, `countByEventType`).
 
 ### Unauthenticated Endpoints
 - `/actuator/**` — health, info, metrics, prometheus
@@ -475,6 +490,7 @@ This is the only TODO/FIXME in the codebase. It indicates the DLQ listener curre
 | 2026-08-09 19:08:06 | CI push (PR #10) | Code Quality: PASS |
 | 2026-08-09 19:08:06 | CI push (PR #10) | Docker Build: FAIL (health check timeout) |
 | 2026-08-09 19:49:20 | CI push (Docker fix) | All 3 jobs PASS |
+| 2026-08-10 | PR #12 merged: audit log retrieval endpoints | Endpoints + AuditLogControllerTest shipped (docs/api.md updated) |
 
 ## Git Workflow
 
@@ -492,24 +508,29 @@ This is the only TODO/FIXME in the codebase. It indicates the DLQ listener curre
 - `src/main/java/com/igorservice/orderservice/repository/AuditLogRepository.java` — New repository (8 methods)
 - `src/main/java/com/igorservice/orderservice/service/AuditLogService.java` — New service (7 methods)
 - `src/main/java/com/igorservice/orderservice/metrics/OrderMetrics.java` — New metrics (7 metrics)
-- `src/main/java/com/igorservice/orderservice/controller/AuditLogController.java` — New controller
+- `src/main/java/com/igorservice/orderservice/controller/AuditLogController.java` — New controller (5 retrieval endpoints: per-order trail, by event type, recent, counts)
+- `src/main/java/com/igorservice/orderservice/dto/AuditLogResponse.java` — New response DTO (record with @Schema)
 - `src/main/resources/db/migration/V2__create_audit_log_table.sql` — New Flyway migration
-- `src/test/java/com/igorservice/orderservice/service/AuditLogServiceTest.java` — New tests
+- `src/test/java/com/igorservice/orderservice/service/AuditLogServiceTest.java` — New tests (8)
+- `src/test/java/com/igorservice/orderservice/controller/AuditLogControllerTest.java` — New MockMvc tests (6)
 - `.github/workflows/ci.yml` — Fixed Docker health check issue
 - `MEMORY.md`, `ERRORS.md`, `DECISIONS.md` — Updated with audit log metrics data
 
 ### Test Results Summary (last 7 days)
 | Test | Result |
 |------|--------|
+| AuditLogServiceTest | ✅ PASS (8 tests, 0 failures) |
+| AuditLogControllerTest | ✅ PASS (6 tests, 0 failures) |
 | OrderServiceTest | ✅ PASS (7 tests, 0 failures) |
 | KafkaEventPublisherTest | ✅ PASS (7 tests, 0 failures) |
-| KafkaDlqListenerTest | ✅ PASS (7 tests, 0 failures) |
-| AuditLogServiceTest | ✅ PASS (8 tests, 0 failures) |
+| KafkaDlqListenerTest | ✅ PASS (3 tests, 0 failures) |
 | OrderMetricsTest | ✅ PASS (4 tests, 0 failures) |
 | GlobalExceptionHandlerTest | ✅ PASS (4 tests, 0 failures) |
-| OrderStatusTest | ✅ PASS (5 tests, 0 failures) |
-| OrderRepositoryIntegrationTest | ✅ PASS (6 tests, 0 failures) |
-| OrderSearchIntegrationTest | ✅ PASS (6 tests, 0 failures) |
+| OrderStatusTest | ✅ PASS (17 tests, 0 failures) |
+| OrderTest / OrderItemTest | ✅ PASS (5 / 5 tests, 0 failures) |
+| ApiKeyAuthFilterTest | ✅ PASS (7 tests, 0 failures) |
+| OrderRepositoryIntegrationTest | ✅ PASS (4 tests, 0 failures) |
+| OrderSearchIntegrationTest | ✅ PASS (7 tests, 0 failures) |
 | OrderControllerTest | ✅ PASS (6 tests, 0 failures) |
 | OrderSearchControllerTest | ✅ PASS (6 tests, 0 failures) |
-| 88 total | ✅ 0 failures |
+| 96 total | ✅ 0 failures |
