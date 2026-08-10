@@ -247,19 +247,45 @@ Handles 4 exception types:
 
 ---
 
+## Phantom Endpoint Gap — Audit Retrieval Endpoints (PR #12)
+
+### The Gap
+- **Issue**: README.md, docs/api.md, AGENTS.md, and MEMORY.md documented audit log retrieval endpoints (`GET /orders/{orderId}/audit`, `GET /audit/events`, `GET /audit/recent`, counts) since PR #10 — but the `AuditLogController` was **never shipped**. PR #10 only merged the service layer, repository, entity, migration, and metrics. The docs described an API that did not exist on main.
+- **Detection**: A docs task for the audit feature was blocked on a feature task; the route table (`npm run build` equivalent for Java: check controller package on `origin/main`) showed no controller. `git grep -l -i audit origin/main -- src/main` found only the service/repository/entity classes, no `@RestController`.
+- **Root Cause**: Feature work was merged in two steps (service layer in PR #10, controller in a later PR #12). Documentation for the full feature was written after step one, before the HTTP layer existed.
+- **Fix**: Implemented the real endpoints in PR #12 (`feat(audit): implement audit log retrieval endpoints`) — `AuditLogController` with 5 GET endpoints, `AuditLogResponse` DTO with `@Schema`, `AuditLogControllerTest` (6 MockMvc tests). Only then were docs finalized (api.md) and this memory updated truthfully.
+
+### Lesson for Future Cycles
+- Never merge docs describing an endpoint/feature that does not exist in code. Verify the feature on `origin/main` first (`git grep` for the controller/endpoint), then implement, then document.
+- The board's "docs" task for a feature whose implementation task is `blocked`/`partial` is a red flag — cross-reference before executing.
+
+---
+
+## Audit Log Controller Test Pitfalls (PR #12)
+
+- `AuditLogControllerTest` is a `@WebMvcTest(AuditLogController.class)` with `@AutoConfigureMockMvc(addFilters = false)` — the `X-API-KEY` filter is disabled, so tests exercise pure controller → service mapping.
+- Must `@MockBean AuditLogService` and `@Import(GlobalExceptionHandler.class)` — forgetting either causes context startup failure (same pattern as `OrderControllerTest`).
+- Service methods return `Page<AuditLog>`; tests must stub with `PageImpl` (e.g. `new PageImpl<>(List.of(sample), PageRequest.of(0, 20), 1)`) — the paginated signature, not a raw `List`.
+- MockMvc assertions use `jsonPath("$.content[0].eventType")` — the response is a Spring `Page` envelope, not a bare array.
+- The 5 endpoints covered: per-order trail, by event type, recent, count per order, count by event type.
+
+---
+
 ## Test Results Summary (Last 7 Days)
 
 | Test | Result | Notes |
 |------|--------|-------|
 | OrderServiceTest | ✅ PASS | 7 tests |
 | KafkaEventPublisherTest | ✅ PASS | 7 tests (includes DLQ recovery tests) |
-| KafkaDlqListenerTest | ✅ PASS | 7 tests |
-| AuditLogServiceTest | ✅ PASS | 8 tests (new - pagination + metrics) |
+| KafkaDlqListenerTest | ✅ PASS | 3 tests |
+| AuditLogServiceTest | ✅ PASS | 8 tests (pagination + metrics) |
+| AuditLogControllerTest | ✅ PASS | 6 tests (retrieval endpoints, PR #12) |
 | OrderMetricsTest | ✅ PASS | 4 tests |
 | GlobalExceptionHandlerTest | ✅ PASS | 4 tests |
-| OrderStatusTest | ✅ PASS | 5 tests |
-| OrderRepositoryIntegrationTest | ✅ PASS | 6 tests |
-| OrderSearchIntegrationTest | ✅ PASS | 6 tests |
+| OrderStatusTest | ✅ PASS | 17 tests |
+| OrderRepositoryIntegrationTest | ✅ PASS | 4 tests |
+| OrderSearchIntegrationTest | ✅ PASS | 7 tests |
 | OrderControllerTest | ✅ PASS | 6 tests |
 | OrderSearchControllerTest | ✅ PASS | 6 tests |
-| **88 total** | ✅ **0 failures** | |
+| ApiKeyAuthFilterTest | ✅ PASS | 7 tests |
+| **96 total** | ✅ **0 failures** | |

@@ -375,3 +375,27 @@
 - `idx_order_items_order_id` on `order_items(order_id)` — for order item lookups
 - Indexes defined in both JPA `@Table(indexes = {...})` and Flyway `V1__create_orders_table.sql`
 - `ddl-auto: validate` ensures JPA indexes match database indexes
+
+---
+
+### ADR-021: Audit Log Retrieval REST API
+
+**Status:** Accepted
+
+**Context:** The service records an audit trail for every order lifecycle event (ORDER_CREATED, ORDER_STATUS_CHANGED, ORDER_CANCELLED) in the `audit_log` table (PR #9), with query observability metrics (PR #10). Consumers (compliance, support, dashboards) need a versioned REST API to query those entries — the service layer already exposed paginated query methods, but no HTTP endpoints existed until PR #12.
+
+**Decision:** Expose `AuditLogService` query methods through `AuditLogController` under `/api/v1` with five read-only GET endpoints:
+- `GET /api/v1/orders/{orderId}/audit` — paginated audit trail for one order (default sort: `timestamp` desc)
+- `GET /api/v1/audit/events?eventType={eventType}` — entries filtered by event type (e.g. `ORDER_CANCELLED`)
+- `GET /api/v1/audit/recent?since={ISO-8601 instant}` — entries recorded at/after a timestamp (fixed sort `timestamp` desc)
+- `GET /api/v1/orders/{orderId}/audit/count` and `GET /api/v1/audit/events/count?eventType=` — lightweight counts for dashboards (return `{"count": N}`)
+
+**Consequences:**
+- Responses are `Page<AuditLogResponse>` (except counts) — a Java record DTO with `@Schema` annotations so the JPA entity is never exposed and SpringDoc/OpenAPI documents the payloads
+- Pagination mirrors `OrderController` conventions: `page`/`size` (max 100)/`sort`/`direction`
+- All endpoints require `X-API-KEY` (enforced by `ApiKeyAuthFilter`); no write endpoints — audit entries are only created by the service during order lifecycle
+- Every query records `audit.log.queries.total` counter and `audit.log.query.duration` timer tagged by query type via `OrderMetrics.recordAuditLogQuery()`
+- Endpoints annotated with `@Operation`/`@ApiResponse`/`@Parameter` for OpenAPI docs (see `docs/api.md`)
+- This ADR closes the phantom-endpoint gap: README/MEMORY had documented these endpoints since PR #10, but they were not implemented until PR #12
+
+---
