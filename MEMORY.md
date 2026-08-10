@@ -47,3 +47,4 @@ _(add lessons here)_
 
 ## Agent Memory Log
 - **2026-08-06** — `memory-system`: Introduced the Repository Memory System. Updated `AGENTS.md`, `README.md` and `docs/memory.md` with the mandatory read/write flow; seeded this file with project facts.
+- **2026-08-10** — `feat(audit)`: Implemented `AuditLogController` (was documented in README/MEMORY since PR #10 but never shipped — phantom endpoint). New endpoints: `GET /orders/{orderId}/audit` (paginated), `GET /audit/events?eventType=`, `GET /audit/recent?since=`, `GET /orders/{orderId}/audit/count`, `GET /audit/events/count?eventType=`. Added `AuditLogResponse` DTO with `@Schema` annotations for SpringDoc; `AuditLogControllerTest` (6 tests). Refs: `controller/AuditLogController.java`, `dto/AuditLogResponse.java`.
