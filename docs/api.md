@@ -290,6 +290,139 @@ curl "http://localhost:8080/api/v1/orders/search?status=PENDING&customerId=custo
 
 ---
 
+### Get Audit Trail for an Order
+
+**GET** `/api/v1/orders/{orderId}/audit`
+
+Returns the paginated audit trail for a specific order (ORDER_CREATED, ORDER_STATUS_CHANGED, ORDER_CANCELLED events). Newest first by default.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | int | No (default: 0) | Page number (0-indexed) |
+| `size` | int | No (default: 20) | Page size (max 100) |
+| `sort` | string | No (default: `timestamp`) | Sort field |
+| `direction` | string | No (default: `desc`) | `asc` or `desc` |
+
+**Example:**
+
+```bash
+curl "http://localhost:8080/api/v1/orders/550e8400-e29b-41d4-a716-446655440000/audit?page=0&size=10" \
+  -H "X-API-KEY: ***"
+```
+
+**Response (200 OK):** Paginated list of audit entries.
+
+```json
+{
+  "content": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "orderId": "550e8400-e29b-41d4-a716-446655440000",
+      "eventType": "ORDER_CANCELLED",
+      "eventData": "{...}",
+      "previousStatus": "PENDING",
+      "newStatus": "CANCELLED",
+      "actorId": "trace:7f0f0c2a-5f8e-4b0a-9c3d-1e2f3a4b5c6d",
+      "timestamp": "2026-08-05T10:30:00Z"
+    }
+  ],
+  "totalElements": 1,
+  "totalPages": 1
+}
+```
+
+---
+
+### Get Audit Logs by Event Type
+
+**GET** `/api/v1/audit/events?eventType={eventType}`
+
+Returns audit entries filtered by event type (e.g. `ORDER_CANCELLED`), paginated. Supports the same `page`, `size`, `sort`, `direction` parameters as the order audit trail.
+
+**Example:**
+
+```bash
+curl "http://localhost:8080/api/v1/audit/events?eventType=ORDER_CANCELLED&page=0&size=10" \
+  -H "X-API-KEY: ***"
+```
+
+**Response (200 OK):** Paginated list of audit entries (same format as above).
+
+---
+
+### Get Recent Audit Logs
+
+**GET** `/api/v1/audit/recent?since={instant}`
+
+Returns audit entries recorded at or after the given ISO-8601 instant (e.g. last 24h), paginated.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `since` | ISO 8601 DateTime | Yes | Only entries at or after this instant |
+| `page` | int | No (default: 0) | Page number (0-indexed) |
+| `size` | int | No (default: 20) | Page size (max 100) |
+
+**Example:**
+
+```bash
+curl "http://localhost:8080/api/v1/audit/recent?since=2026-08-08T00:00:00Z" \
+  -H "X-API-KEY: ***"
+```
+
+**Response (200 OK):** Paginated list of audit entries.
+
+---
+
+### Count Audit Entries for an Order
+
+**GET** `/api/v1/orders/{orderId}/audit/count`
+
+Returns the total number of audit entries recorded for a specific order.
+
+**Example:**
+
+```bash
+curl "http://localhost:8080/api/v1/orders/550e8400-e29b-41d4-a716-446655440000/audit/count" \
+  -H "X-API-KEY: ***"
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "count": 7
+}
+```
+
+---
+
+### Count Audit Entries by Event Type
+
+**GET** `/api/v1/audit/events/count?eventType={eventType}`
+
+Returns the total number of audit entries for an event type (e.g. total cancellations).
+
+**Example:**
+
+```bash
+curl "http://localhost:8080/api/v1/audit/events/count?eventType=ORDER_CANCELLED" \
+  -H "X-API-KEY: ***"
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "count": 3
+}
+```
+
+---
+
 ## Error Responses
 
 ### 401 Unauthorized

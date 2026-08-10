@@ -26,10 +26,12 @@ order-service/
 │   │   ├── RetryConfig.java             # Spring Retry configuration
 │   │   └── SecurityConfig.java          # Spring Security filter chain
 │   ├── controller/
-│   │   └── OrderController.java         # REST endpoints (CRUD + search)
+│   │   ├── OrderController.java         # REST endpoints (CRUD + search)
+│   │   └── AuditLogController.java      # REST endpoints for audit log retrieval
 │   ├── dto/
 │   │   ├── OrderRequest.java            # Create order request DTO
-│   │   └── OrderResponse.java           # Order response DTO with fromEntity()
+│   │   ├── OrderResponse.java           # Order response DTO with fromEntity()
+│   │   └── AuditLogResponse.java        # Audit log response DTO with from()
 │   ├── exception/
 │   │   ├── GlobalExceptionHandler.java  # @RestControllerAdvice for all exceptions
 │   │   └── OrderNotFoundException.java  # Custom 404 exception
@@ -60,7 +62,8 @@ order-service/
 │   │   └── ApiKeyAuthFilterTest.java    # Security filter tests
 │   ├── controller/
 │   │   ├── OrderControllerTest.java     # MockMvc integration tests
-│   │   └── OrderSearchControllerTest.java
+│   │   ├── OrderSearchControllerTest.java
+│   │   └── AuditLogControllerTest.java  # MockMvc tests for audit endpoints
 │   ├── exception/
 │   │   └── GlobalExceptionHandlerTest.java
 │   ├── integration/
